@@ -31,9 +31,9 @@ check_dependencies() {
     fi
 }
 
-# Extract API keys using regex
+# Extract API keys from JavaScript files only
 extract_api_keys() {
-    grep -Eo "AIza[0-9A-Za-z-_]{35}|ABTasty[0-9A-Za-z-_]+|Algolia[0-9A-Za-z-_]+|AWS[0-9A-Za-z-_]+|Slack[0-9A-Za-z-_]+|Stripe[0-9A-Za-z-_]+|Twilio[0-9A-Za-z-_]+|Telegram[0-9A-Za-z-_]+|GitHub[0-9A-Za-z-_]+|Facebook[0-9A-Za-z-_]+|Paypal[0-9A-Za-z-_]+|Google[0-9A-Za-z-_]+|Dropbox[0-9A-Za-z-_]+|LinkedIn[0-9A-Za-z-_]+|Mapbox[0-9A-Za-z-_]+|Microsoft[0-9A-Za-z-_]+|NewRelic[0-9A-Za-z-_]+|Pagerduty[0-9A-Za-z-_]+|SendGrid[0-9A-Za-z-_]+|Shodan[0-9A-Za-z-_]+|Sonarcloud[0-9A-Za-z-_]+|Spotify[0-9A-Za-z-_]+|YouTube[0-9A-Za-z-_]+" wayback.txt | anew api_keys.txt
+    grep -Eo "AIza[0-9A-Za-z-_]{35}|ABTasty[0-9A-Za-z-_]+|Algolia[0-9A-Za-z-_]+|AWS[0-9A-Za-z-_]+|Slack[0-9A-Za-z-_]+|Stripe[0-9A-Za-z-_]+|Twilio[0-9A-Za-z-_]+|Telegram[0-9A-Za-z-_]+|GitHub[0-9A-Za-z-_]+|Facebook[0-9A-Za-z-_]+|Paypal[0-9A-Za-z-_]+|Google[0-9A-Za-z-_]+|Dropbox[0-9A-Za-z-_]+|LinkedIn[0-9A-Za-z-_]+|Mapbox[0-9A-Za-z-_]+|Microsoft[0-9A-Za-z-_]+|NewRelic[0-9A-Za-z-_]+|Pagerduty[0-9A-Za-z-_]+|SendGrid[0-9A-Za-z-_]+|Shodan[0-9A-Za-z-_]+|Sonarcloud[0-9A-Za-z-_]+|Spotify[0-9A-Za-z-_]+|YouTube[0-9A-Za-z-_]+" js_files.txt | anew api_keys.txt
 }
 
 # Parse command-line arguments
@@ -59,20 +59,24 @@ check_dependencies
 # Banner
 echo -e "${blue}Starting API key finder for domain: ${domain}${reset}"
 
-# Step 1: Find subdomains
-subfinder -d $domain -silent | anew subdomains.txt
+# Step 1: Find subdomains (silent mode, do not display)
+subfinder -d $domain -silent | anew subdomains.txt > /dev/null
 
-# Step 2: Fetch URLs from multiple sources
+# Step 2: Fetch URLs but only get JavaScript files
 (cat subdomains.txt | waybackurls; 
  cat subdomains.txt | gau --subs;
- echo "$domain" | hakrawler -depth 2 -plain) | anew wayback.txt
+ echo "$domain" | hakrawler -depth 2 -plain) | grep -E "\.js$" | anew js_files.txt
 
-# Step 3: Extract API keys
+# Step 3: Extract API keys only from JavaScript files
 extract_api_keys
 
 # Display results
-echo -e "${green}API keys found:${reset}"
-cat api_keys.txt
+if [ -s api_keys.txt ]; then
+    echo -e "${green}API keys found:${reset}"
+    cat api_keys.txt
+else
+    echo -e "${yellow}No API keys found.${reset}"
+fi
 
 # Save results if -o flag is used
 if [ ! -z "$output" ]; then
